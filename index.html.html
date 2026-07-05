@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0A0A0A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="mobile-web-app-capable" content="yes">
+<title>KOPI Vehicle Classifier</title>
+<style>
+  :root{
+    --yellow:#FBD935;
+    --black:#0A0A0A;
+    --deep:#000000;
+    --white:#FFFFFF;
+    --grey:#CCCCCC;
+    --panel:#141414;
+    --line:#242424;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--black);color:var(--white);
+    font-family:'Montserrat',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  header{padding:16px 20px 12px;border-bottom:1px solid var(--line);background:var(--deep);position:sticky;top:0;z-index:5}
+  .logo{display:block;height:40px;width:auto;max-width:100%}
+  .subtitle{color:var(--grey);font-size:12px;font-weight:500;margin-top:9px;letter-spacing:.3px}
+
+  .searchwrap{padding:14px 20px 8px;position:sticky;top:66px;background:var(--black);z-index:4}
+  .searchbox{position:relative}
+  #q{width:100%;background:var(--panel);border:2px solid var(--line);color:var(--white);
+     font-size:18px;font-weight:600;padding:15px 44px 15px 15px;border-radius:14px;outline:none;font-family:inherit}
+  #q:focus{border-color:var(--yellow)}
+  #q::placeholder{color:#666;font-weight:500}
+  .clear{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:#2a2a2a;border:none;color:var(--grey);
+     width:30px;height:30px;border-radius:50%;font-size:18px;display:none;align-items:center;justify-content:center;cursor:pointer}
+  .clear.show{display:flex}
+
+  .result{padding:8px 20px 4px}
+  .verdict{border-radius:16px;padding:20px;text-align:center;border:2px solid var(--line);background:var(--panel);display:none}
+  .verdict.show{display:block;animation:pop .16s ease-out}
+  @keyframes pop{from{transform:scale(.97);opacity:.4}to{transform:scale(1);opacity:1}}
+  .verdict .car{font-size:15px;color:var(--grey);font-weight:600;letter-spacing:.3px;margin-bottom:10px;text-transform:uppercase}
+  .verdict .tier{font-size:30px;font-weight:800;letter-spacing:.5px;line-height:1.05}
+  .verdict .charge{font-size:13px;margin-top:10px;font-weight:600;color:var(--grey)}
+  .verdict .charge b{color:var(--yellow)}
+  .t-small .tier{color:var(--white)}
+  .t-cross .tier{color:var(--yellow)}
+  .t-suv .tier{color:var(--yellow)}
+  .t-dcab .tier{color:var(--yellow)}
+  .t-scab .tier{color:var(--yellow)}
+  .t-taxi .tier{color:var(--white)}
+  .verdict.t-suv,.verdict.t-dcab{border-color:var(--yellow)}
+  .verdict.t-cross{border-color:#6b5900}
+
+  .fallback{display:none;background:var(--panel);border:2px dashed #3a3a3a;border-radius:16px;padding:16px 16px 6px}
+  .fallback.show{display:block}
+  .fallback h3{color:var(--yellow);font-size:13px;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+  .fallback .lead{color:#888;font-size:12px;margin-bottom:12px;line-height:1.4}
+  .rule{display:flex;gap:10px;padding:9px 0;border-top:1px solid var(--line);align-items:flex-start}
+  .rule:first-of-type{border-top:none}
+  .rnum{color:var(--black);background:var(--yellow);font-weight:800;font-size:12px;min-width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .rtext{color:var(--grey);font-size:13px;line-height:1.4}
+  .rtext b{color:var(--white)}
+
+  .listhead{padding:14px 20px 6px;color:#666;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
+  .list{padding:0 12px 24px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 12px;border-radius:12px;margin-bottom:6px;background:var(--panel);border:1px solid var(--line)}
+  .item .name{font-weight:600;font-size:14px;line-height:1.25}
+  .item .mk{color:#777;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+  .pill{font-size:10px;font-weight:800;padding:5px 9px;border-radius:20px;letter-spacing:.4px;text-transform:uppercase;white-space:nowrap;flex-shrink:0}
+  .pill.small{background:#1f1f1f;color:var(--white);border:1px solid #333}
+  .pill.cross{background:#3a3100;color:var(--yellow);border:1px solid #5a4d00}
+  .pill.suv{background:var(--yellow);color:var(--black)}
+  .pill.dcab{background:var(--yellow);color:var(--black)}
+  .pill.scab{background:#2a2200;color:var(--yellow);border:1px solid #4a3d00}
+  .pill.taxi{background:#1f1f1f;color:var(--white);border:1px solid #444}
+  .empty{color:#666;text-align:center;padding:24px 20px;font-size:14px}
+
+  footer{padding:12px 20px calc(12px + env(safe-area-inset-bottom));text-align:center;color:#444;font-size:11px;border-top:1px solid var(--line)}
+  footer .k{color:var(--yellow);font-weight:700}
+  footer .c{color:var(--grey);font-weight:700}
+</style>
+</head>
+<body>
+
+<header>
+  <img class="logo" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4NCjwhLS0gR2VuZXJhdG9yOiBBZG9iZSBJbGx1c3RyYXRvciAyOC4wLjAsIFNWRyBFeHBvcnQgUGx1Zy1JbiAuIFNWRyBWZXJzaW9uOiA2LjAwIEJ1aWxkIDApICAtLT4NCjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiDQoJIHZpZXdCb3g9IjAgMCAyNDE4Ljg0IDYzMS4yNSIgc3R5bGU9ImVuYWJsZS1iYWNrZ3JvdW5kOm5ldyAwIDAgMjQxOC44NCA2MzEuMjU7IiB4bWw6c3BhY2U9InByZXNlcnZlIj4NCjxzdHlsZSB0eXBlPSJ0ZXh0L2NzcyI+DQoJLnN0MHtmaWxsOiNGQkQ5MzU7fQ0KCS5zdDF7ZmlsbDojMEVBQTRCO30NCgkuc3Qye2ZpbGw6I0ZDRDgzNzt9DQoJLnN0M3tmaWxsOiNGRkZGRkY7fQ0KCS5zdDR7ZmlsbDojRjdENjJFO30NCjwvc3R5bGU+DQo8Zz4NCgk8cmVjdCB3aWR0aD0iMjQxOC44NCIgaGVpZ2h0PSI2MzEuMjUiLz4NCgk8Zz4NCgkJPHBvbHlnb24gY2xhc3M9InN0MCIgcG9pbnRzPSI2MTQuNCw0MzcuNTIgNjE0LjQsMTkzLjczIDM2OC40Myw3MS44MyAxMjIuNDUsMTkzLjczIDEyMi40NSw0MzcuNTIgMzY4LjQzLDU1OS40MiAJCSIvPg0KCQk8cG9seWdvbiBjbGFzcz0ic3QwIiBwb2ludHM9IjYxNC40LDQzNy41MiA2MTQuNCwxOTMuNzMgMzY4LjQzLDcxLjgzIDEyMi40NSwxOTMuNzMgMTIyLjQ1LDQzNy41MiAzNjguNDMsNTU5LjQyIAkJIi8+DQoJCTxwb2x5Z29uIGNsYXNzPSJzdDEiIHBvaW50cz0iNzkyLjM0LDQwNy4yMyA3OTIuMzQsNDA3LjIyIDc5MS4yNiw0MDYuOCAJCSIvPg0KCQk8cGF0aCBkPSJNNDM2Ljk2LDE5OS40N2gtNDcuNThsLTM4Ljc2LDg5LjE3di04OS4xN2gtNDMuODVWNDE4LjFoNDMuODV2LTgxLjYyYzEuODEtMS4zNCwzLjU2LTIuNzYsNS4yOS00LjJsMzUuOTYsODUuODNoNDguMTkNCgkJCWwtNTEuOC0xMjMuMjhDNDA0LjMzLDI3MC4yOSw0MTguNzksMjM4Ljk0LDQzNi45NiwxOTkuNDd6Ii8+DQoJCTxnPg0KCQkJPGc+DQoJCQkJPHJlY3QgeD0iMTEzNi44MiIgeT0iMTk0LjA0IiBjbGFzcz0ic3QyIiB3aWR0aD0iNDMuMzIiIGhlaWdodD0iMjEwLjE4Ii8+DQoJCQkJPHBhdGggY2xhc3M9InN0MiIgZD0iTTEwNjAuODcsMTk1LjM1aC02Mi45NXYyMDguODhoNDEuNzh2LTczLjczaDI1LjI2YzI1LjI5LDAsNDUuNzktMTYuNjQsNDUuNzktNTEuOTl2LTMwLjM3DQoJCQkJCUMxMTEwLjc1LDIxMC4zNiwxMDg3LjYzLDE5NS4zNSwxMDYwLjg3LDE5NS4zNXogTTEwNjkuNTcsMjc4LjU3YzAsMTUuMDktNy43NCwyMC44Ni0xNy4yOCwyMC44NmgtMTIuNTl2LTcwLjYxaDEyLjU5DQoJCQkJCWM5LjU0LDAsMTcuMjgsNCwxNy4yOCwyMS4xMlYyNzguNTd6Ii8+DQoJCQkJPHBhdGggY2xhc3M9InN0MiIgZD0iTTgzNC4wNSwxOTQuMDRoLTQ1LjMzbC0zNi45Myw4NS43MnYtODUuNzJoLTQxLjc4djIxMC4xOGg0MS43OHYtNzguNDdjMS43Mi0xLjI5LDMuMzktMi42NSw1LjA0LTQuMDQNCgkJCQkJbDM0LjI2LDgyLjUxSDgzN0w3ODcuNjUsMjg1LjdDODAyLjk2LDI2Mi4xMiw4MTYuNzQsMjMxLjk4LDgzNC4wNSwxOTQuMDR6Ii8+DQoJCQkJPHBhdGggY2xhc3M9InN0MiIgZD0iTTkyOC41NiwxOTQuMDRjLTMuMTYtMC42OC02LjQ0LTEuMDQtOS44LTEuMDRoLTIxLjQ1Yy0zLjM2LDAtNi42NCwwLjM2LTkuOCwxLjA0DQoJCQkJCWMtMjAuOTksNC40OS0zNi43MywyMy4xNS0zNi43Myw0NS40OXYxMjEuOTJjMCwxOS4xOCwxMS42LDM1LjY1LDI4LjE3LDQyLjc3YzUuNjMsMi40MywxMS44NCwzLjc3LDE4LjM2LDMuNzdoMjEuNDUNCgkJCQkJYzYuNTIsMCwxMi43My0xLjM0LDE4LjM2LTMuNzdjMTYuNTctNy4xMiwyOC4xNy0yMy41OSwyOC4xNy00Mi43N1YyMzkuNTNDOTY1LjI5LDIxNy4xOSw5NDkuNTUsMTk4LjUzLDkyOC41NiwxOTQuMDR6DQoJCQkJCSBNOTI0LjI5LDM2MS4zNmMwLDguNTgtNi45NSwxNS41Mi0xNS41MiwxNS41MnMtMTUuNTItNi45NC0xNS41Mi0xNS41MlYyNDAuM2MwLTguNTcsNi45NS0xNS41MiwxNS41Mi0xNS41Mg0KCQkJCQlzMTUuNTIsNi45NSwxNS41MiwxNS41MlYzNjEuMzZ6Ii8+DQoJCQk8L2c+DQoJCTwvZz4NCgkJPGc+DQoJCQk8cG9seWdvbiBjbGFzcz0ic3QzIiBwb2ludHM9IjIyNDIuOTQsMTk0LjA0IDIyNDIuOTQsMjgxLjgxIDIyMDkuNzksMjgxLjgxIDIyMDkuNzksMTk0LjA0IDIxNjYuNDcsMTk0LjA0IDIxNjYuNDcsNDA0LjIyIA0KCQkJCTIyMDkuNzksNDA0LjIyIDIyMDkuNzksMzE1LjYzIDIyNDIuOTQsMzE1LjYzIDIyNDIuOTQsNDA0LjIyIDIyODYuMjUsNDA0LjIyIDIyODYuMjUsMTk0LjA0IAkJCSIvPg0KCQkJPHBhdGggY2xhc3M9InN0MyIgZD0iTTE0NDEuNzIsMTk0LjA0bC0zOC4yMywyMTAuMThoNDEuNTZsNS4yNi0zNy44M2gzNi44Nmw1Ljg0LDM3LjgzaDQyLjY5bC0zOC44Mi0yMTAuMThIMTQ0MS43MnoNCgkJCQkgTTE0NTQuNTUsMzM1Ljk3TDE0NTQuNTUsMzM1Ljk3bDEzLjIzLTk1LjA5bDE0LjY5LDk1LjA5bDAsMEgxNDU0LjU1eiIvPg0KCQkJPHBvbHlnb24gY2xhc3M9InN0MyIgcG9pbnRzPSIxODE5LjkyLDM0Ni4wOCAxODA0LjcyLDE5NC4wNCAxNzYzLjU3LDE5NC4wNCAxNzQ4LjI4LDM0NS45MyAxNzM0LjE2LDE5NC4wNCAxNjg5Ljg3LDE5NC4wNCANCgkJCQkxNzE3LjM4LDQwNC4yMiAxNzY5LjM5LDQwNC4yMiAxNzgyLjkzLDI4Ny4wNSAxNzk1LjU0LDQwNC4yMiAxODQ3LjQxLDQwNC4yMiAxODc0LjU1LDE5NC4wNCAxODMzLjk2LDE5NC4wNCAJCQkiLz4NCgkJCTxwYXRoIGNsYXNzPSJzdDMiIGQ9Ik0xOTE4LDE5NC4wNGwtMzguNSwyMTAuMThoNDAuNTRsNS42NS0zOC4zN2gzOC40MWw1LjY5LDM4LjM3aDQyLjIybC0zOC40My0yMTAuMThIMTkxOHogTTE5MzAuMDIsMzM2LjQ4DQoJCQkJbDE0LjgtMTAwLjQ5bDE0LjkyLDEwMC40OUgxOTMwLjAyeiIvPg0KCQkJPHBhdGggY2xhc3M9InN0MyIgZD0iTTIwODYuNTYsMjc3LjMzYy0yMi4zOC0xOC40NC0yMS4yNy01My41LTEuMDUtNTMuNXMxNC42OCwzMS45NywxNC42OCwzMS45N2gzOC41OQ0KCQkJCWMyLjU0LTQxLjM5LTE2Ljk0LTYyLjc5LTUwLjcyLTYyLjc5Yy0zMy4yNiwwLTU5LjE3LDEwLjIyLTU5LjE3LDUyLjMzYzAsNDMuODUsMTYuNDksNTAuNjcsNDguODMsNzUuNjINCgkJCQljMjguMDcsMjEuNjUsMjcuODIsNTUuNDksNi41NSw1NS40OXMtMTQuOTItMzcuMzUtMTQuOTItMzcuMzVoLTQwLjQ3Yy00LjEzLDU3LDE4LjI3LDY4Ljk2LDU1LjA1LDY4Ljk2DQoJCQkJYzM2Ljc4LDAsNTUuNDMtMTYuNzMsNTcuMDQtNTAuNzNDMjE0My4yOCwzMDguOTYsMjEwNy42OCwyOTQuNzQsMjA4Ni41NiwyNzcuMzN6Ii8+DQoJCQk8cGF0aCBjbGFzcz0ic3QzIiBkPSJNMTY2OS4yMSwzNDAuNzNjMC0zMi44Ni0yNC4xMy0zNy40LTI0LjEzLTM3LjRjMTQuMy0yLjQ1LDI1LjAxLTEzLjIsMjUuMDEtMzUuNzN2LTIyLjA1DQoJCQkJYzAtMzQuNTktMjAuNTUtNTEuNTEtNDUuOS01MS41MWgtNjcuOTl2MjEwLjE4aDQzLjMxdi04My4wNWgxMy40N2MxNS44OSwwLDE3LjQ5LDIxLjc5LDE2LjE5LDQ5Ljc4DQoJCQkJYy0wLjgzLDE3Ljk4LDEuOTEsMjguMjMsMy45OCwzMy4yN2g0Mi40NEMxNjY3Ljk4LDM4OS4wMSwxNjY5LjIxLDM3MC4wNSwxNjY5LjIxLDM0MC43M3ogTTE2MjguNzgsMjY5LjEyDQoJCQkJYzAsMTUuNDEtOS4wOCwyMC4yOS0yMC4yOSwyMC4yOWgtOC45OHYtNjIuOTRoOC45OGMxMS4yMSwwLDIwLjI5LDMuNjYsMjAuMjksMjAuMjlWMjY5LjEyeiIvPg0KCQkJPHBhdGggY2xhc3M9InN0MyIgZD0iTTEzMzkuMywxOTNoLTIxLjA1Yy0yNS4yMywwLTQ1LjY3LDIwLjgzLTQ1LjY3LDQ2LjUzdjEyMS45MmMwLDI1LjcsMjAuNDUsNDYuNTMsNDUuNjcsNDYuNTNoMjEuMDUNCgkJCQljMjUuMjMsMCw0NS42Ny0yMC44Myw0NS42Ny00Ni41M1YzMjdoLTQwLjI1djM0LjM3YzAsOC41Ny02LjgyLDE1LjUyLTE1LjIzLDE1LjUycy0xNS4yMy02Ljk1LTE1LjIzLTE1LjUyVjI0MC4zDQoJCQkJYzAtOC41Nyw2LjgyLTE1LjUyLDE1LjIzLTE1LjUyczE1LjIzLDYuOTUsMTUuMjMsMTUuNTJ2MzEuMDRoNDAuMjV2LTMxLjgxQzEzODQuOTgsMjEzLjgzLDEzNjQuNTMsMTkzLDEzMzkuMywxOTN6Ii8+DQoJCTwvZz4NCgkJPHBvbHlnb24gY2xhc3M9InN0NCIgcG9pbnRzPSIyMjk2LjQsNDY5LjE2IDIyOTYuNCw0OTguOTQgNTgwLjEzLDQ5OC45NCA2NDAuMjMsNDY5LjE2IAkJIi8+DQoJPC9nPg0KPC9nPg0KPC9zdmc+DQo=" alt="KOPI CARWASH">
+  <div class="subtitle">Vehicle Classifier &middot; charge the right category, every time</div>
+</header>
+
+<div class="searchwrap">
+  <div class="searchbox">
+    <input id="q" type="text" inputmode="search" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" placeholder="Type the car, e.g. Fortuner or Ranger">
+    <button class="clear" id="clear" aria-label="Clear">&times;</button>
+  </div>
+</div>
+
+<div class="result">
+  <div class="verdict" id="verdict">
+    <div class="car" id="vcar"></div>
+    <div class="tier" id="vtier"></div>
+    <div class="charge" id="vcharge"></div>
+  </div>
+
+  <div class="fallback" id="fallback">
+    <h3>Not listed? Follow the rules in order</h3>
+    <div class="lead">Work top to bottom. The first rule that fits wins.</div>
+    <div class="rule"><div class="rnum">1</div><div class="rtext"><b>Double cab overrides everything.</b> Any four-door bakkie with two seat rows (Hilux, Ranger, D-Max, Amarok). Select Double cab, charge SUV price.</div></div>
+    <div class="rule"><div class="rnum">2</div><div class="rtext"><b>Passenger minibus / taxi</b> (Quantum, Sprinter, Transit Minibus). Select Minibus taxi.</div></div>
+    <div class="rule"><div class="rnum">3</div><div class="rtext"><b>Low compact people-movers are Crossovers, not SUVs.</b> Car height, no real ground clearance, 5 to 7 seats (Avanza, Rumion, Ertiga, XL6, Triber, Xpander, BR-V). If it sits low like a car, it is a Crossover even with 7 seats.</div></div>
+    <div class="rule"><div class="rnum">4</div><div class="rtext"><b>Raised 7-seaters are SUVs</b> (Fortuner, Everest, MU-X, Prado, Land Cruiser, Sorento, Santa Fe, XUV700). High ride, off-road stance.</div></div>
+    <div class="rule"><div class="rnum">5</div><div class="rtext"><b>Low-roof hatch, sedan, coupe or wagon</b> (Polo, Corolla, Swift, C-Class). Select Small car.</div></div>
+    <div class="rule"><div class="rnum">6</div><div class="rtext"><b>Compact raised vehicle</b> (Magnite, Fronx, Jolion, Tiggo 4, Corolla Cross). Select Crossover.</div></div>
+    <div class="rule"><div class="rnum">7</div><div class="rtext"><b>Medium or large raised passenger vehicle</b> (Tucson, H6, RAV4, X3, Q5). Select SUV.</div></div>
+    <div class="rule"><div class="rnum">8</div><div class="rtext"><b>Private people carriers are normally SUVs</b> (H-1, Staria, Carnival, V-Class, Caravelle) unless clearly a taxi.</div></div>
+    <div class="rule"><div class="rnum">9</div><div class="rtext"><b>Single cab bakkies (NP200, single-cab Hilux):</b> ask first, are we washing the load bin? <b>No</b> = Small car price. <b>Yes</b> = SUV price. Never charge SUV price for a cab-only wash.</div></div>
+    <div class="rule"><div class="rnum">10</div><div class="rtext"><b>Still unsure?</b> Classify by the physical vehicle (height, length, seat rows, load bin). Use the nearest benchmark or ask management.</div></div>
+    <div style="height:8px"></div>
+  </div>
+</div>
+
+<div class="listhead" id="listhead">All vehicles</div>
+<div class="list" id="list"></div>
+
+<footer><span class="k">KOPI</span> <span class="c">CARWASH</span> &middot; 243 models &middot; works offline</footer>
+
+<script>
+const VEHICLES = [
+  {m:"Audi", f:"A1 / A3", t:"small", s:"Audi A1 A3"},
+  {m:"Audi", f:"A4 / A5", t:"small", s:"Audi A4 A5"},
+  {m:"Audi", f:"A6 / A7 / A8", t:"small", s:"Audi A6 A7 A8"},
+  {m:"Audi", f:"Q2 / Q3", t:"cross", s:"Audi Q2 Q3"},
+  {m:"Audi", f:"Q5", t:"suv", s:"Audi Q5"},
+  {m:"Audi", f:"Q7 / Q8", t:"suv", s:"Audi Q7 Q8"},
+  {m:"BAIC", f:"B40 / B60", t:"suv", s:"BAIC B40 B60"},
+  {m:"BAIC", f:"X25 / X35", t:"cross", s:"BAIC X25 X35"},
+  {m:"BAIC", f:"X55 / Beijing X7", t:"suv", s:"BAIC X55 Beijing X7"},
+  {m:"BMW", f:"1 Series / 2 Series", t:"small", s:"BMW 1 Series 2 Series"},
+  {m:"BMW", f:"3 Series / 4 Series", t:"small", s:"BMW 3 Series 4 Series"},
+  {m:"BMW", f:"5 Series / 6 Series", t:"small", s:"BMW 5 Series 6 Series"},
+  {m:"BMW", f:"7 Series / 8 Series", t:"small", s:"BMW 7 Series 8 Series"},
+  {m:"BMW", f:"X1 / X2", t:"cross", s:"BMW X1 X2"},
+  {m:"BMW", f:"X3 / X4", t:"suv", s:"BMW X3 X4"},
+  {m:"BMW", f:"X5 / X6 / X7", t:"suv", s:"BMW X5 X6 X7"},
+  {m:"Chery", f:"Tiggo 4 / Tiggo 4 Pro / Tiggo Cross", t:"cross", s:"Chery Tiggo 4 Tiggo 4 Pro Tiggo Cross"},
+  {m:"Chery", f:"Tiggo 7 / Tiggo 7 Pro", t:"suv", s:"Chery Tiggo 7 Tiggo 7 Pro"},
+  {m:"Chery", f:"Tiggo 8 / Tiggo 8 Pro / Tiggo 9", t:"suv", s:"Chery Tiggo 8 Tiggo 8 Pro Tiggo 9"},
+  {m:"Chevrolet", f:"Aveo / Sonic", t:"small", s:"Chevrolet Aveo Sonic"},
+  {m:"Chevrolet", f:"Captiva", t:"suv", s:"Chevrolet Captiva"},
+  {m:"Chevrolet", f:"Cruze / Optra", t:"small", s:"Chevrolet Cruze Optra"},
+  {m:"Chevrolet", f:"Spark", t:"small", s:"Chevrolet Spark"},
+  {m:"Chevrolet", f:"Trailblazer", t:"suv", s:"Chevrolet Trailblazer"},
+  {m:"Citroën", f:"C1 / C2 / C3 hatch", t:"small", s:"Citroën C1 C2 C3 hatch"},
+  {m:"Citroën", f:"C4 hatch / C-Elysée", t:"small", s:"Citroën C4 hatch C-Elysée"},
+  {m:"Citroën", f:"C5 Aircross", t:"suv", s:"Citroën C5 Aircross"},
+  {m:"Daihatsu", f:"Charade / Cuore / Sirion", t:"small", s:"Daihatsu Charade Cuore Sirion"},
+  {m:"Datsun", f:"Cross", t:"cross", s:"Datsun Cross"},
+  {m:"Datsun", f:"Go", t:"small", s:"Datsun Go"},
+  {m:"Fiat", f:"500 / Panda / Punto / Tipo", t:"small", s:"Fiat 500 Panda Punto Tipo"},
+  {m:"Ford", f:"EcoSport", t:"cross", s:"Ford EcoSport"},
+  {m:"Ford", f:"Everest", t:"suv", s:"Ford Everest"},
+  {m:"Ford", f:"Fiesta / Figo", t:"small", s:"Ford Fiesta Figo"},
+  {m:"Ford", f:"Focus", t:"small", s:"Ford Focus"},
+  {m:"Ford", f:"Ikon / Laser / Fusion", t:"small", s:"Ford Ikon Laser Fusion"},
+  {m:"Ford", f:"Kuga / Territory", t:"suv", s:"Ford Kuga Territory"},
+  {m:"Ford", f:"Puma", t:"cross", s:"Ford Puma"},
+  {m:"Ford", f:"Ranger Double Cab", t:"dcab", s:"Ford Ranger Double Cab"},
+  {m:"Ford", f:"Transit Minibus", t:"taxi", s:"Ford Transit Minibus"},
+  {m:"Foton", f:"Tunland Double Cab", t:"dcab", s:"Foton Tunland Double Cab"},
+  {m:"Foton", f:"View Minibus", t:"taxi", s:"Foton View Minibus"},
+  {m:"GAC", f:"Emkoo / GS8", t:"suv", s:"GAC Emkoo GS8"},
+  {m:"GAC", f:"GS3 / Emzoom", t:"cross", s:"GAC GS3 Emzoom"},
+  {m:"GWM", f:"P-Series / P300 / P500 Double Cab", t:"dcab", s:"GWM P-Series P300 P500 Double Cab"},
+  {m:"GWM", f:"Steed Double Cab", t:"dcab", s:"GWM Steed Double Cab"},
+  {m:"GWM / Haval", f:"H2 / H5 / H6 / H7", t:"suv", s:"GWM / Haval H2 H5 H6 H7"},
+  {m:"GWM / Haval", f:"H9", t:"suv", s:"GWM / Haval H9"},
+  {m:"GWM / Haval", f:"Jolion / Jolion Pro", t:"cross", s:"GWM / Haval Jolion Jolion Pro"},
+  {m:"GWM / Haval", f:"M4 / H1", t:"cross", s:"GWM / Haval M4 H1"},
+  {m:"GWM / Haval", f:"Tank 300 / Tank 500", t:"suv", s:"GWM / Haval Tank 300 Tank 500"},
+  {m:"Honda", f:"Accord", t:"small", s:"Honda Accord"},
+  {m:"Honda", f:"Ballade", t:"small", s:"Honda Ballade"},
+  {m:"Honda", f:"BR-V", t:"cross", s:"Honda BR-V"},
+  {m:"Honda", f:"Brio / Amaze", t:"small", s:"Honda Brio Amaze"},
+  {m:"Honda", f:"Civic", t:"small", s:"Honda Civic"},
+  {m:"Honda", f:"CR-V", t:"suv", s:"Honda CR-V"},
+  {m:"Honda", f:"HR-V / WR-V", t:"cross", s:"Honda HR-V WR-V"},
+  {m:"Honda", f:"Jazz / Fit", t:"small", s:"Honda Jazz Fit"},
+  {m:"Hyundai", f:"Accent / Elantra", t:"small", s:"Hyundai Accent Elantra"},
+  {m:"Hyundai", f:"Atos / Getz", t:"small", s:"Hyundai Atos Getz"},
+  {m:"Hyundai", f:"Creta", t:"cross", s:"Hyundai Creta"},
+  {m:"Hyundai", f:"H-1 / Staria", t:"suv", s:"Hyundai H-1 Staria"},
+  {m:"Hyundai", f:"i10 / Grand i10", t:"small", s:"Hyundai i10 Grand i10"},
+  {m:"Hyundai", f:"i20", t:"small", s:"Hyundai i20"},
+  {m:"Hyundai", f:"i30", t:"small", s:"Hyundai i30"},
+  {m:"Hyundai", f:"Kona", t:"cross", s:"Hyundai Kona"},
+  {m:"Hyundai", f:"Santa Fe / Palisade / Terracan", t:"suv", s:"Hyundai Santa Fe Palisade Terracan"},
+  {m:"Hyundai", f:"Solati Minibus", t:"taxi", s:"Hyundai Solati Minibus"},
+  {m:"Hyundai", f:"Tucson / ix35", t:"suv", s:"Hyundai Tucson ix35"},
+  {m:"Hyundai", f:"Venue", t:"cross", s:"Hyundai Venue"},
+  {m:"Isuzu", f:"KB / D-Max Double Cab", t:"dcab", s:"Isuzu KB D-Max Double Cab"},
+  {m:"Isuzu", f:"MU-X", t:"suv", s:"Isuzu MU-X"},
+  {m:"Iveco", f:"Daily Minibus", t:"taxi", s:"Iveco Daily Minibus"},
+  {m:"JAC", f:"JS4", t:"cross", s:"JAC JS4"},
+  {m:"JAC", f:"S2 / JS2", t:"cross", s:"JAC S2 JS2"},
+  {m:"JAC", f:"S5 / JS6", t:"suv", s:"JAC S5 JS6"},
+  {m:"JAC", f:"Sunray Minibus", t:"taxi", s:"JAC Sunray Minibus"},
+  {m:"JAC", f:"T6 / T8 / T9 Double Cab", t:"dcab", s:"JAC T6 T8 T9 Double Cab"},
+  {m:"Jaecoo", f:"J7", t:"suv", s:"Jaecoo J7"},
+  {m:"Jeep", f:"Cherokee / Grand Cherokee", t:"suv", s:"Jeep Cherokee Grand Cherokee"},
+  {m:"Jeep", f:"Gladiator", t:"dcab", s:"Jeep Gladiator"},
+  {m:"Jeep", f:"Renegade / Compass", t:"cross", s:"Jeep Renegade Compass"},
+  {m:"Jeep", f:"Wrangler / Commander", t:"suv", s:"Jeep Wrangler Commander"},
+  {m:"Jetour", f:"Dashing", t:"suv", s:"Jetour Dashing"},
+  {m:"Jetour", f:"T1 / T2", t:"suv", s:"Jetour T1 T2"},
+  {m:"Jetour", f:"X70 / X90", t:"suv", s:"Jetour X70 X90"},
+  {m:"Kia", f:"Carnival", t:"suv", s:"Kia Carnival"},
+  {m:"Kia", f:"Cerato / K3", t:"small", s:"Kia Cerato K3"},
+  {m:"Kia", f:"Pegas", t:"small", s:"Kia Pegas"},
+  {m:"Kia", f:"Picanto", t:"small", s:"Kia Picanto"},
+  {m:"Kia", f:"Pregio Minibus", t:"taxi", s:"Kia Pregio Minibus"},
+  {m:"Kia", f:"Rio", t:"small", s:"Kia Rio"},
+  {m:"Kia", f:"Seltos", t:"cross", s:"Kia Seltos"},
+  {m:"Kia", f:"Sonet", t:"cross", s:"Kia Sonet"},
+  {m:"Kia", f:"Sorento / Carens", t:"suv", s:"Kia Sorento Carens"},
+  {m:"Kia", f:"Sportage", t:"suv", s:"Kia Sportage"},
+  {m:"Kia", f:"Stonic", t:"cross", s:"Kia Stonic"},
+  {m:"Kia", f:"Tasman Double Cab", t:"dcab", s:"Kia Tasman Double Cab"},
+  {m:"Land Rover", f:"Discovery / Defender", t:"suv", s:"Land Rover Discovery Defender"},
+  {m:"Land Rover", f:"Freelander / Discovery Sport", t:"suv", s:"Land Rover Freelander Discovery Sport"},
+  {m:"Land Rover", f:"Range Rover Evoque", t:"cross", s:"Land Rover Range Rover Evoque"},
+  {m:"Land Rover", f:"Range Rover Velar / Sport / Range Rover", t:"suv", s:"Land Rover Range Rover Velar Sport Range Rover"},
+  {m:"LDV / Maxus", f:"T60 / T90 Double Cab", t:"dcab", s:"LDV / Maxus T60 T90 Double Cab"},
+  {m:"Lexus", f:"CT / IS / ES", t:"small", s:"Lexus CT IS ES"},
+  {m:"Lexus", f:"GS / LS", t:"small", s:"Lexus GS LS"},
+  {m:"Lexus", f:"GX / LX", t:"suv", s:"Lexus GX LX"},
+  {m:"Lexus", f:"NX / RX", t:"suv", s:"Lexus NX RX"},
+  {m:"Mahindra", f:"Pik Up / Karoo Double Cab", t:"dcab", s:"Mahindra Pik Up Karoo Double Cab"},
+  {m:"Mahindra", f:"Scorpio / Scorpio-N", t:"suv", s:"Mahindra Scorpio Scorpio-N"},
+  {m:"Mahindra", f:"TUV300 / Bolero / Thar", t:"suv", s:"Mahindra TUV300 Bolero Thar"},
+  {m:"Mahindra", f:"XUV300 / XUV 3XO", t:"cross", s:"Mahindra XUV300 XUV 3XO"},
+  {m:"Mahindra", f:"XUV500 / XUV700", t:"suv", s:"Mahindra XUV500 XUV700"},
+  {m:"Mazda", f:"BT-50 / Drifter Double Cab", t:"dcab", s:"Mazda BT-50 Drifter Double Cab"},
+  {m:"Mazda", f:"CX-3", t:"cross", s:"Mazda CX-3"},
+  {m:"Mazda", f:"CX-30", t:"cross", s:"Mazda CX-30"},
+  {m:"Mazda", f:"CX-5 / CX-60", t:"suv", s:"Mazda CX-5 CX-60"},
+  {m:"Mazda", f:"CX-80 / CX-9", t:"suv", s:"Mazda CX-80 CX-9"},
+  {m:"Mazda", f:"E2000 Minibus", t:"taxi", s:"Mazda E2000 Minibus"},
+  {m:"Mazda", f:"Mazda2", t:"small", s:"Mazda Mazda2"},
+  {m:"Mazda", f:"Mazda3", t:"small", s:"Mazda Mazda3"},
+  {m:"Mazda", f:"Mazda6", t:"small", s:"Mazda Mazda6"},
+  {m:"Mercedes-Benz", f:"A-Class / B-Class / CLA", t:"small", s:"Mercedes-Benz A-Class B-Class CLA"},
+  {m:"Mercedes-Benz", f:"C-Class", t:"small", s:"Mercedes-Benz C-Class"},
+  {m:"Mercedes-Benz", f:"E-Class / CLS", t:"small", s:"Mercedes-Benz E-Class CLS"},
+  {m:"Mercedes-Benz", f:"G-Class", t:"suv", s:"Mercedes-Benz G-Class"},
+  {m:"Mercedes-Benz", f:"GLA / EQA", t:"cross", s:"Mercedes-Benz GLA EQA"},
+  {m:"Mercedes-Benz", f:"GLB / EQB", t:"suv", s:"Mercedes-Benz GLB EQB"},
+  {m:"Mercedes-Benz", f:"GLC", t:"suv", s:"Mercedes-Benz GLC"},
+  {m:"Mercedes-Benz", f:"GLE / GLS", t:"suv", s:"Mercedes-Benz GLE GLS"},
+  {m:"Mercedes-Benz", f:"S-Class", t:"small", s:"Mercedes-Benz S-Class"},
+  {m:"Mercedes-Benz", f:"Sprinter Minibus", t:"taxi", s:"Mercedes-Benz Sprinter Minibus"},
+  {m:"Mercedes-Benz", f:"V-Class / Vito Tourer", t:"suv", s:"Mercedes-Benz V-Class Vito Tourer"},
+  {m:"Mercedes-Benz", f:"X-Class", t:"dcab", s:"Mercedes-Benz X-Class"},
+  {m:"MG", f:"HS", t:"suv", s:"MG HS"},
+  {m:"MG", f:"ZS / ZS Pro", t:"cross", s:"MG ZS ZS Pro"},
+  {m:"MINI", f:"Hatch / Cooper / Clubman", t:"small", s:"MINI Hatch Cooper Clubman"},
+  {m:"Mitsubishi", f:"ASX", t:"cross", s:"Mitsubishi ASX"},
+  {m:"Mitsubishi", f:"Eclipse Cross / Xforce", t:"cross", s:"Mitsubishi Eclipse Cross Xforce"},
+  {m:"Mitsubishi", f:"Outlander", t:"suv", s:"Mitsubishi Outlander"},
+  {m:"Mitsubishi", f:"Pajero / Pajero Sport", t:"suv", s:"Mitsubishi Pajero Pajero Sport"},
+  {m:"Mitsubishi", f:"Triton / Colt Double Cab", t:"dcab", s:"Mitsubishi Triton Colt Double Cab"},
+  {m:"Mitsubishi", f:"Xpander / Xpander Cross", t:"cross", s:"Mitsubishi Xpander Xpander Cross"},
+  {m:"Nissan", f:"Almera", t:"small", s:"Nissan Almera"},
+  {m:"Nissan", f:"Go+", t:"cross", s:"Nissan Go+"},
+  {m:"Nissan", f:"Juke", t:"cross", s:"Nissan Juke"},
+  {m:"Nissan", f:"Livina", t:"suv", s:"Nissan Livina"},
+  {m:"Nissan", f:"Magnite", t:"cross", s:"Nissan Magnite"},
+  {m:"Nissan", f:"Micra", t:"small", s:"Nissan Micra"},
+  {m:"Nissan", f:"Navara / NP300 Hardbody Double Cab", t:"dcab", s:"Nissan Navara NP300 Hardbody Double Cab"},
+  {m:"Nissan", f:"NP200", t:"scab", s:"Nissan NP200"},
+  {m:"Nissan", f:"NV350 Impendulo", t:"taxi", s:"Nissan NV350 Impendulo"},
+  {m:"Nissan", f:"Pathfinder / Terrano / Murano", t:"suv", s:"Nissan Pathfinder Terrano Murano"},
+  {m:"Nissan", f:"Patrol", t:"suv", s:"Nissan Patrol"},
+  {m:"Nissan", f:"Qashqai", t:"cross", s:"Nissan Qashqai"},
+  {m:"Nissan", f:"Tiida / Sentra", t:"small", s:"Nissan Tiida Sentra"},
+  {m:"Nissan", f:"Urvan / E20 / E23 / E24 Minibus", t:"taxi", s:"Nissan Urvan E20 E23 E24 Minibus"},
+  {m:"Nissan", f:"X-Trail", t:"suv", s:"Nissan X-Trail"},
+  {m:"Omoda", f:"C5", t:"cross", s:"Omoda C5"},
+  {m:"Omoda", f:"C9", t:"suv", s:"Omoda C9"},
+  {m:"Opel", f:"Astra / Kadett", t:"small", s:"Opel Astra Kadett"},
+  {m:"Opel", f:"Corsa", t:"small", s:"Opel Corsa"},
+  {m:"Opel", f:"Grandland / Frontera", t:"suv", s:"Opel Grandland Frontera"},
+  {m:"Opel", f:"Mokka / Crossland", t:"cross", s:"Opel Mokka Crossland"},
+  {m:"Peugeot", f:"107 / 108 / 208", t:"small", s:"Peugeot 107 108 208"},
+  {m:"Peugeot", f:"2008", t:"cross", s:"Peugeot 2008"},
+  {m:"Peugeot", f:"206 / 207 / 307 / 308", t:"small", s:"Peugeot 206 207 307 308"},
+  {m:"Peugeot", f:"3008 / 5008", t:"suv", s:"Peugeot 3008 5008"},
+  {m:"Peugeot", f:"407 / 508", t:"small", s:"Peugeot 407 508"},
+  {m:"Peugeot", f:"Landtrek Double Cab", t:"dcab", s:"Peugeot Landtrek Double Cab"},
+  {m:"Porsche", f:"Macan / Cayenne", t:"suv", s:"Porsche Macan Cayenne"},
+  {m:"Proton", f:"Saga / Persona / Gen-2 / Satria", t:"small", s:"Proton Saga Persona Gen-2 Satria"},
+  {m:"Proton", f:"X70 / X90", t:"suv", s:"Proton X70 X90"},
+  {m:"Renault", f:"Captur", t:"cross", s:"Renault Captur"},
+  {m:"Renault", f:"Clio", t:"small", s:"Renault Clio"},
+  {m:"Renault", f:"Duster", t:"cross", s:"Renault Duster"},
+  {m:"Renault", f:"Kiger", t:"cross", s:"Renault Kiger"},
+  {m:"Renault", f:"Koleos / Austral", t:"suv", s:"Renault Koleos Austral"},
+  {m:"Renault", f:"Kwid", t:"small", s:"Renault Kwid"},
+  {m:"Renault", f:"Mégane / Fluence", t:"small", s:"Renault Mégane Fluence"},
+  {m:"Renault", f:"Sandero / Logan", t:"small", s:"Renault Sandero Logan"},
+  {m:"Renault", f:"Triber", t:"cross", s:"Renault Triber"},
+  {m:"Subaru", f:"Forester / Outback", t:"suv", s:"Subaru Forester Outback"},
+  {m:"Subaru", f:"Impreza / WRX / Legacy / BRZ", t:"small", s:"Subaru Impreza WRX Legacy BRZ"},
+  {m:"Subaru", f:"XV / Crosstrek", t:"cross", s:"Subaru XV Crosstrek"},
+  {m:"Suzuki", f:"Alto / Celerio", t:"small", s:"Suzuki Alto Celerio"},
+  {m:"Suzuki", f:"Baleno", t:"small", s:"Suzuki Baleno"},
+  {m:"Suzuki", f:"Brezza / Vitara", t:"cross", s:"Suzuki Brezza Vitara"},
+  {m:"Suzuki", f:"Ciaz", t:"small", s:"Suzuki Ciaz"},
+  {m:"Suzuki", f:"Dzire", t:"small", s:"Suzuki Dzire"},
+  {m:"Suzuki", f:"Ertiga / XL6", t:"cross", s:"Suzuki Ertiga XL6"},
+  {m:"Suzuki", f:"Fronx", t:"cross", s:"Suzuki Fronx"},
+  {m:"Suzuki", f:"Grand Vitara", t:"cross", s:"Suzuki Grand Vitara"},
+  {m:"Suzuki", f:"Ignis", t:"cross", s:"Suzuki Ignis"},
+  {m:"Suzuki", f:"Jimny 3-door / 5-door", t:"cross", s:"Suzuki Jimny 3-door 5-door"},
+  {m:"Suzuki", f:"S-Presso", t:"small", s:"Suzuki S-Presso"},
+  {m:"Suzuki", f:"Swift", t:"small", s:"Suzuki Swift"},
+  {m:"Tata", f:"Harrier / Safari", t:"suv", s:"Tata Harrier Safari"},
+  {m:"Tata", f:"Indica / Indigo / Vista / Bolt", t:"small", s:"Tata Indica Indigo Vista Bolt"},
+  {m:"Tata", f:"Xenon Double Cab", t:"dcab", s:"Tata Xenon Double Cab"},
+  {m:"Toyota", f:"Agya / Aygo / Vitz", t:"small", s:"Toyota Agya Aygo Vitz"},
+  {m:"Toyota", f:"Avanza", t:"cross", s:"Toyota Avanza"},
+  {m:"Toyota", f:"C-HR", t:"cross", s:"Toyota C-HR"},
+  {m:"Toyota", f:"Camry / Avensis", t:"small", s:"Toyota Camry Avensis"},
+  {m:"Toyota", f:"Corolla / Corolla Quest / RunX / Auris", t:"small", s:"Toyota Corolla Corolla Quest RunX Auris"},
+  {m:"Toyota", f:"Corolla Cross", t:"cross", s:"Toyota Corolla Cross"},
+  {m:"Toyota", f:"Etios", t:"small", s:"Toyota Etios"},
+  {m:"Toyota", f:"FJ Cruiser", t:"suv", s:"Toyota FJ Cruiser"},
+  {m:"Toyota", f:"Fortuner", t:"suv", s:"Toyota Fortuner"},
+  {m:"Toyota", f:"Hiace / Siyaya Minibus", t:"taxi", s:"Toyota Hiace Siyaya Minibus"},
+  {m:"Toyota", f:"Highlander / Innova", t:"suv", s:"Toyota Highlander Innova"},
+  {m:"Toyota", f:"Hilux Double Cab", t:"dcab", s:"Toyota Hilux Double Cab"},
+  {m:"Toyota", f:"Land Cruiser 70 / 80 / 100 / 200 / 300", t:"suv", s:"Toyota Land Cruiser 70 80 100 200 300"},
+  {m:"Toyota", f:"Land Cruiser 79 Double Cab", t:"dcab", s:"Toyota Land Cruiser 79 Double Cab"},
+  {m:"Toyota", f:"Land Cruiser Prado", t:"suv", s:"Toyota Land Cruiser Prado"},
+  {m:"Toyota", f:"Prius", t:"small", s:"Toyota Prius"},
+  {m:"Toyota", f:"Quantum / Ses'fikile", t:"taxi", s:"Toyota Quantum Ses'fikile"},
+  {m:"Toyota", f:"RAV4", t:"suv", s:"Toyota RAV4"},
+  {m:"Toyota", f:"Rumion", t:"cross", s:"Toyota Rumion"},
+  {m:"Toyota", f:"Rush", t:"suv", s:"Toyota Rush"},
+  {m:"Toyota", f:"Starlet", t:"small", s:"Toyota Starlet"},
+  {m:"Toyota", f:"Starlet Cross", t:"cross", s:"Toyota Starlet Cross"},
+  {m:"Toyota", f:"Tazz / Conquest", t:"small", s:"Toyota Tazz Conquest"},
+  {m:"Toyota", f:"Urban Cruiser", t:"cross", s:"Toyota Urban Cruiser"},
+  {m:"Toyota", f:"Yaris", t:"small", s:"Toyota Yaris"},
+  {m:"Volkswagen", f:"Amarok Double Cab", t:"dcab", s:"Volkswagen Amarok Double Cab"},
+  {m:"Volkswagen", f:"Citi Golf", t:"small", s:"Volkswagen Citi Golf"},
+  {m:"Volkswagen", f:"Crafter Minibus", t:"taxi", s:"Volkswagen Crafter Minibus"},
+  {m:"Volkswagen", f:"Golf", t:"small", s:"Volkswagen Golf"},
+  {m:"Volkswagen", f:"Jetta", t:"small", s:"Volkswagen Jetta"},
+  {m:"Volkswagen", f:"Passat / Arteon", t:"small", s:"Volkswagen Passat Arteon"},
+  {m:"Volkswagen", f:"Polo / Polo Vivo", t:"small", s:"Volkswagen Polo Polo Vivo"},
+  {m:"Volkswagen", f:"T-Cross", t:"cross", s:"Volkswagen T-Cross"},
+  {m:"Volkswagen", f:"T-Roc", t:"cross", s:"Volkswagen T-Roc"},
+  {m:"Volkswagen", f:"Taigo", t:"cross", s:"Volkswagen Taigo"},
+  {m:"Volkswagen", f:"Tiguan", t:"suv", s:"Volkswagen Tiguan"},
+  {m:"Volkswagen", f:"Touareg / Teramont / Atlas", t:"suv", s:"Volkswagen Touareg Teramont Atlas"},
+  {m:"Volkswagen", f:"Touran / Caravelle / Multivan", t:"suv", s:"Volkswagen Touran Caravelle Multivan"},
+  {m:"Volkswagen", f:"up!", t:"small", s:"Volkswagen up!"},
+  {m:"Volvo", f:"C30 / S40 / V40", t:"small", s:"Volvo C30 S40 V40"},
+  {m:"Volvo", f:"S60 / V60", t:"small", s:"Volvo S60 V60"},
+  {m:"Volvo", f:"S80 / S90 / V90", t:"small", s:"Volvo S80 S90 V90"},
+  {m:"Volvo", f:"XC40 / C40 / EX30", t:"cross", s:"Volvo XC40 C40 EX30"},
+  {m:"Volvo", f:"XC60", t:"suv", s:"Volvo XC60"},
+  {m:"Volvo", f:"XC90 / EX90", t:"suv", s:"Volvo XC90 EX90"}
+];
+
+const LABELS = {
+  small:{name:"SMALL CAR", pill:"small", charge:"Charge <b>Small car</b> price"},
+  cross:{name:"CROSSOVER", pill:"cross", charge:"Charge <b>Crossover</b> price"},
+  suv:{name:"SUV", pill:"suv", charge:"Charge <b>SUV</b> price"},
+  dcab:{name:"DOUBLE CAB", pill:"dcab", charge:"Record as Double cab &middot; charge <b>SUV price</b>"},
+  scab:{name:"SINGLE CAB", pill:"scab", charge:"Cab only &rarr; <b>Small car</b> price. Washing the bin &rarr; <b>SUV</b> price."},
+  taxi:{name:"MINIBUS TAXI", pill:"taxi", charge:"Charge <b>Minibus taxi</b> price"}
+};
+
+const q=document.getElementById('q');
+const clearBtn=document.getElementById('clear');
+const verdict=document.getElementById('verdict');
+const fallback=document.getElementById('fallback');
+const listEl=document.getElementById('list');
+const listhead=document.getElementById('listhead');
+const vcar=document.getElementById('vcar');
+const vtier=document.getElementById('vtier');
+const vcharge=document.getElementById('vcharge');
+
+function norm(s){return s.toLowerCase().replace(/[^a-z0-9]/g,'');}
+const sorted=[...VEHICLES].sort((a,b)=>(a.m+a.f).localeCompare(b.m+b.f));
+
+function renderList(items){
+  if(items.length===0){listEl.innerHTML='<div class="empty">No match. Use the rules above to classify, then charge.</div>';return;}
+  listEl.innerHTML=items.map(v=>{
+    const L=LABELS[v.t];
+    return '<div class="item"><div><div class="mk">'+v.m+'</div><div class="name">'+v.f+'</div></div><span class="pill '+L.pill+'">'+L.name+'</span></div>';
+  }).join('');
+}
+function showVerdict(v){
+  const L=LABELS[v.t];
+  verdict.className='verdict show t-'+v.t;
+  vcar.textContent=v.m+' '+v.f;
+  vtier.textContent=L.name;
+  vcharge.innerHTML=L.charge;
+  fallback.classList.remove('show');
+}
+function hideVerdict(){verdict.className='verdict';}
+
+function update(){
+  const raw=q.value.trim();
+  clearBtn.classList.toggle('show',raw.length>0);
+  const nq=norm(raw);
+  if(nq===''){hideVerdict();fallback.classList.remove('show');listhead.textContent='All vehicles';renderList(sorted);return;}
+  const matches=sorted.filter(v=>norm(v.s).includes(nq));
+  if(matches.length===1){showVerdict(matches[0]);}
+  else{hideVerdict();}
+  if(matches.length===0){fallback.classList.add('show');listhead.textContent='No match';}
+  else{if(matches.length!==1)fallback.classList.remove('show');listhead.textContent=matches.length+' match'+(matches.length>1?'es':'');}
+  renderList(matches);
+}
+q.addEventListener('input',update);
+clearBtn.addEventListener('click',()=>{q.value='';q.focus();update();});
+renderList(sorted);
+</script>
+</body>
+</html>
